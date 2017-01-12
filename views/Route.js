@@ -16,7 +16,6 @@ import reduxStore from '../data/reduxStore';
 
 import NavLink from './components/NavLink';
 import BluetoothSelect from './Main/BluetoothSelect';
-import PeripheralServices from './Main/PeripheralServices';
 import DisplayDetail from './Main/DisplayDetail';
 
 // 防止闪退
@@ -58,8 +57,7 @@ export default class Route extends Component {
           <Router>
             <View>
               <Match exactly pattern="/" component={() => <BluetoothSelect />} />
-              <Match pattern="/services" component={() => <PeripheralServices />} />
-              <Match pattern="/detail" component={() => <DisplayDetail />} />
+              <Match pattern="/services" component={() => <DisplayDetail />} />
               <Miss component={componentFactory('Nope, nothing here')} />
             </View>
           </Router>

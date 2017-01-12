@@ -1,5 +1,7 @@
 /* @flow */
+import Promise from 'bluebird';
 import { words, takeRight } from 'lodash';
+
 import React, { Component, PropTypes } from 'react';
 import { autobind } from 'core-decorators';
 import { bindActionCreators } from 'redux';
@@ -9,64 +11,71 @@ import BleManager from 'react-native-ble-manager';
 import Snackbar from 'react-native-android-snackbar';
 
 import { TouchableOpacity, View, Dimensions, BackAndroid, StyleSheet, NativeAppEventEmitter } from 'react-native';
-import { Container, Header, Title, Text, InputGroup, Input, Icon, Content, Footer, FooterTab, Button } from 'native-base';
+import { Container, Header, Title, InputGroup, List, ListItem, Text, Input, Icon, Content, Footer, FooterTab, Button } from 'native-base';
 import { Col, Row, Grid } from 'react-native-easy-grid';
 
 import { LineChart } from 'react-native-mp-android-chart';
 
 import { disconnectCurrentPeripheral } from '../../data/reducers/peripheral';
 
-const colorSwatches = ['#F44336', '#03A9F4', '#E91E63', '#9C27B0', '#00BCD4', '#673AB7', '#3F51B5', '#2196F3', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#607D8B', '#000000'];
-const { width: windowWidth } = Dimensions.get('window');
+const colorSwatches = ['#F44336', '#9C27B0'];
+const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 const styles = StyleSheet.create({
   chart: {
-    height: 300,
+    height: (windowHeight - 200) / 3,
     width: windowWidth
   }
 });
 
+function parseRadix16(hexNumber) {
+  return new Buffer.from(hexNumber, 'hex').readInt16LE(0);
+}
+
 function mapStateToProps(state) {
+  const data = state.peripheral.getIn(['data']);
   return {
-    info: state.view.getIn(['currentCharacteristic']),
+    peripheralInfo: data,
+    name: data.name,
+    id: data.id,
+    characteristics: data.characteristics,
   };
 }
 
-@connect(mapStateToProps)
+function mapDispatchToProps(dispatch) {
+  return bindActionCreators({ disconnectCurrentPeripheral }, dispatch);
+}
+
+
+@connect(mapStateToProps, mapDispatchToProps)
 @autobind
 export default class PeripheralDetail extends Component {
   static contextTypes = { router: PropTypes.object };
   static propTypes = {
-    info: PropTypes.shape({
-      id: PropTypes.string,
-      service: PropTypes.string,
-      characteristic: PropTypes.string,
-    }).isRequired,
+    disconnectCurrentPeripheral: PropTypes.func.isRequired,
   };
 
-  static defaultProps = {
-    info: {
-      id: '',
-      service: '',
-      characteristic: '',
-    }
-  }
-
   state = {
+    errorInfo: '',
+    showDetail: false,
     notifying: false,
     openLineChart: true,
     eventListener: null,
-    currentData: '',
-    dataCache: [
-      { name: 'ACC_X_L', values: [] },
-      { name: 'ACC_X_H', values: [] },
-      { name: 'ACC_Y_L', values: [] },
-      { name: 'ACC_Y_H', values: [] },
-      { name: 'ACC_Z_L', values: [] },
-      { name: 'ACC_Z_H', values: [] }
+    accCurrentData: '                      ',
+    gyoCurrentData: '                      ',
+    accDataCache: [
+      { name: 'ACC_X', values: [] },
+      { name: 'ACC_Y', values: [] },
+      { name: 'ACC_Z', values: [] }
     ],
-    dataCacheLimit: 30,
-    lastDataUpdateTime: new Date().getTime(),
-    updatePeriod: 1000, // ms
+    gyoDataCache: [
+      { name: 'GYO_X', values: [] },
+      { name: 'GYO_Y', values: [] },
+      { name: 'GYO_Z', values: [] }
+    ],
+    dataCacheLimit: 10,
+    lastACCDataUpdateTime: new Date().getTime(),
+    lastGYODataUpdateTime: new Date().getTime(),
+    updatePeriod: 1500, // ms
   }
 
   componentDidMount() {
@@ -74,84 +83,115 @@ export default class PeripheralDetail extends Component {
   }
 
   handleBack() {
-    if (this.state.notifying === true) {
-      this.state.eventListener.remove();
-      BleManager.stopNotification(
-        this.props.info.id,
-        this.props.info.service,
-        this.props.info.characteristic
-      )
-        .then((data) => {
-          this.setState({ notifying: false });
-        })
-        .catch((error) => {
-          this.setState({ data: JSON.stringify(error, null, '  ') });
-        });
-    }
-    this.context.router.transitionTo('/services');
+    this.context.router.transitionTo('/');
+    this.props.disconnectCurrentPeripheral();
     return true;
-  }
-
-  filteDataToState({ peripheral: peripheralID, characteristic, value }) {
-    if (new Date().getTime() - this.state.lastDataUpdateTime >= this.state.updatePeriod && peripheralID === this.props.info.id && characteristic === this.props.info.characteristic) {
-      // push things like [ 252, 0, 146, 0, 239, 188 ]
-      const datas = words(value, /\S{2}/g).map(byte => parseInt(byte, 16));
-      const dataCache = ['ACC_X_L', 'ACC_X_H', 'ACC_Y_L', 'ACC_Y_H', 'ACC_Z_L', 'ACC_Z_H'].map((name, index) => ({
-        name, values: [...takeRight(this.state.dataCache[index].values, this.state.dataCacheLimit), datas[index]]
-      }));
-
-      this.setState({ currentData: value, dataCache, lastDataUpdateTime: new Date().getTime() });
-    }
   }
 
   notifyData() {
     if (this.state.notifying === true) {
       this.state.eventListener.remove();
-      return BleManager.stopNotification(
-        this.props.info.id,
-        this.props.info.service,
-        this.props.info.characteristic
+      return Promise.try(() =>
+        BleManager.stopNotification(
+          '08:7C:BE:00:00:01',
+          'fee9',
+          'd44bc439-abfd-45a2-b575-925416129601'
+        )
       )
-        .then((data) => {
-          this.setState({ notifying: false });
-        })
-        .catch((error) => {
-          this.setState({ data: JSON.stringify(error, null, '  ') });
-        });
+      .then(() => Promise.delay(this.state.updatePeriod))
+      .then(() =>
+        BleManager.stopNotification(
+          '08:7C:BE:00:00:01',
+          'fee9',
+          'd44bc439-abfd-45a2-b575-925416129602'
+        )
+      )
+      .then(() => {
+        this.setState({ notifying: false });
+      })
+      .catch((error) => {
+        this.setState({ errorInfo: JSON.stringify(error, null, '  ') });
+      });
     }
 
-    return BleManager.startNotification(
-      this.props.info.id,
-      this.props.info.service,
-      this.props.info.characteristic
+    return Promise.try(() =>
+      BleManager.startNotification(
+        '08:7C:BE:00:00:01',
+        'fee9',
+        'd44bc439-abfd-45a2-b575-925416129601'
+      )
     )
-      .then((data) => {
-        this.setState({ notifying: true });
-        this.setState({ eventListener: NativeAppEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.filteDataToState) });
-      })
-      .catch((error) => {
-        this.setState({ data: JSON.stringify(error, null, '  ') });
-      });
+    .then(() => Promise.delay(this.state.updatePeriod))
+    .then(() =>
+      BleManager.startNotification(
+        '08:7C:BE:00:00:01',
+        'fee9',
+        'd44bc439-abfd-45a2-b575-925416129602'
+      )
+    )
+    .then(() => {
+      this.setState({ notifying: true });
+      this.setState({ eventListener: NativeAppEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.filteDataToState) });
+    })
+    .catch((error) => {
+      this.setState({ errorInfo: JSON.stringify(error, null, '  ') });
+    });
   }
 
-  readData() {
-    BleManager.read(
-      this.props.info.id,
-      this.props.info.service,
-      this.props.info.characteristic
-    )
-      .then((data) => {
-        this.setState({ data });
-      })
-      .catch((error) => {
-        this.setState({ data: JSON.stringify(error, null, '  ') });
-      });
-  }
+  filteDataToState({ peripheral: peripheralID, characteristic, value }) {
+    if (new Date().getTime() - this.state.lastACCDataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129601') {
+      // push things like [ 252, 0, 146, 0, 239, 188 ]
+      const datas = words(value, /\S{4}/g).map(parseRadix16);
+      const accDataCache = ['ACC_X', 'ACC_Y', 'ACC_Z'].map((name, index) => ({
+        name, values: [...takeRight(this.state.accDataCache[index].values, this.state.dataCacheLimit), datas[index]]
+      }));
 
+      this.setState({ accCurrentData: value, accDataCache, lastACCDataUpdateTime: new Date().getTime() });
+    } else if (new Date().getTime() - this.state.lastGYODataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129602') {
+      const datas = words(value, /\S{4}/g).map(parseRadix16);
+      const gyoDataCache = ['GYO_X', 'GYO_Y', 'GYO_Z'].map((name, index) => ({
+        name, values: [...takeRight(this.state.gyoDataCache[index].values, this.state.dataCacheLimit), datas[index]]
+      }));
+
+      this.setState({ gyoCurrentData: value, gyoDataCache, lastGYODataUpdateTime: new Date().getTime() });
+    }
+  }
 
   render() {
-    const lineChartData = {
-      datasets: this.state.dataCache.map(({ name, values }, index) => ({
+    const XlineChartData = {
+      datasets: [this.state.accDataCache[0], this.state.gyoDataCache[0]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[index % colorSwatches.length],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    };
+    const YlineChartData = {
+      datasets: [this.state.accDataCache[1], this.state.gyoDataCache[1]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[index % colorSwatches.length],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    };
+    const ZlineChartData = {
+      datasets: [this.state.accDataCache[2], this.state.gyoDataCache[2]].map(({ name, values }, index) => ({
         yValues: values,
         label: name,
         config: {
@@ -172,31 +212,64 @@ export default class PeripheralDetail extends Component {
           <Button onPress={this.handleBack} transparent>
             <Icon name="ios-arrow-back" />
           </Button>
-          <Title>{this.props.info.characteristic}</Title>
+          <Title>大联大重力控制仪</Title>
+          <Button onPress={() => this.setState({ showDetail: !this.state.showDetail })} transparent>
+            <Icon name="md-document" />
+          </Button>
           <Button onPress={() => this.setState({ openLineChart: !this.state.openLineChart })} transparent>
             <Icon name="md-podium" />
           </Button>
         </Header>
         <Content>
-          <Text>{this.state.currentData}</Text>
+          <Text>{this.state.errorInfo || `ACC: ${this.state.accCurrentData}  GYO: ${this.state.gyoCurrentData}`}</Text>
           {
             this.state.openLineChart
               ?
-                <LineChart
-                  style={styles.chart}
-                  data={lineChartData}
-                  description={{ text: '' }}
+                <View>
+                  <LineChart
+                    style={styles.chart}
+                    data={XlineChartData}
+                    description={{ text: '' }}
 
-                  drawGridBackground={false}
-                  borderColor={'teal'}
-                  borderWidth={1}
-                  drawBorders={true}
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
 
-                  keepPositionOnRotation={false}
-                />
+                    keepPositionOnRotation={false}
+                  />
+                  <LineChart
+                    style={styles.chart}
+                    data={YlineChartData}
+                    description={{ text: '' }}
+
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
+
+                    keepPositionOnRotation={false}
+                  />
+                  <LineChart
+                    style={styles.chart}
+                    data={ZlineChartData}
+                    description={{ text: '' }}
+
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
+
+                    keepPositionOnRotation={false}
+                  />
+                </View>
               : <View />
           }
-
+          {
+            this.state.showDetail
+            ? <Text style={styles.summary}>{JSON.stringify(this.props.peripheralInfo, null, '  ')}</Text>
+            : <View />
+          }
         </Content>
         <Footer>
           <FooterTab>
