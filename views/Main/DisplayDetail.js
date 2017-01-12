@@ -28,7 +28,9 @@ const styles = StyleSheet.create({
 });
 
 function parseRadix16(hexNumber) {
-  return new Buffer.from(hexNumber, 'hex').readInt16LE(0);
+  // const 量程 = 16384;
+  const 量程 = 17039;
+  return new Buffer.from(hexNumber, 'hex').readInt16LE(0) / 量程;
 }
 
 function mapStateToProps(state) {
@@ -63,14 +65,14 @@ export default class PeripheralDetail extends Component {
     accCurrentData: '                      ',
     gyoCurrentData: '                      ',
     accDataCache: [
-      { name: 'ACC_X', values: [] },
-      { name: 'ACC_Y', values: [] },
-      { name: 'ACC_Z', values: [] }
+      { name: '加速度X·G¹', values: [] },
+      { name: '加速度Y·G¹', values: [] },
+      { name: '加速度Z·G¹', values: [] }
     ],
     gyoDataCache: [
-      { name: 'GYO_X', values: [] },
-      { name: 'GYO_Y', values: [] },
-      { name: 'GYO_Z', values: [] }
+      { name: '陀螺仪X·G¹', values: [] },
+      { name: '陀螺仪Y·G¹', values: [] },
+      { name: '陀螺仪Z·G¹', values: [] }
     ],
     dataCacheLimit: 10,
     lastACCDataUpdateTime: new Date().getTime(),
@@ -142,14 +144,14 @@ export default class PeripheralDetail extends Component {
     if (new Date().getTime() - this.state.lastACCDataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129601') {
       // push things like [ 252, 0, 146, 0, 239, 188 ]
       const datas = words(value, /\S{4}/g).map(parseRadix16);
-      const accDataCache = ['ACC_X', 'ACC_Y', 'ACC_Z'].map((name, index) => ({
+      const accDataCache = ['加速度X·G¹', '加速度Y·G¹', '加速度Z·G¹'].map((name, index) => ({
         name, values: [...takeRight(this.state.accDataCache[index].values, this.state.dataCacheLimit), datas[index]]
       }));
 
       this.setState({ accCurrentData: value, accDataCache, lastACCDataUpdateTime: new Date().getTime() });
     } else if (new Date().getTime() - this.state.lastGYODataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129602') {
       const datas = words(value, /\S{4}/g).map(parseRadix16);
-      const gyoDataCache = ['GYO_X', 'GYO_Y', 'GYO_Z'].map((name, index) => ({
+      const gyoDataCache = ['陀螺仪X·G¹', '陀螺仪Y·G¹', '陀螺仪Z·G¹'].map((name, index) => ({
         name, values: [...takeRight(this.state.gyoDataCache[index].values, this.state.dataCacheLimit), datas[index]]
       }));
 
