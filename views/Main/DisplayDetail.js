@@ -112,7 +112,7 @@ export default class PeripheralDetail extends Component {
         this.setState({ notifying: false });
       })
       .catch((error) => {
-        this.setState({ errorInfo: JSON.stringify(error, null, '  ') });
+        this.setState({ notifying: false, errorInfo: JSON.stringify(error, null, '  ') });
       });
     }
 
@@ -136,7 +136,7 @@ export default class PeripheralDetail extends Component {
       this.setState({ eventListener: NativeAppEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.filteDataToState) });
     })
     .catch((error) => {
-      this.setState({ errorInfo: JSON.stringify(error, null, '  ') });
+      this.setState({ notifying: false, errorInfo: JSON.stringify(error, null, '  ') });
     });
   }
 
