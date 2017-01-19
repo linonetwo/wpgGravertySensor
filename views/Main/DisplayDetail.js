@@ -59,6 +59,7 @@ export default class PeripheralDetail extends Component {
     showDetail: false,
     notifying: false,
     openACCLineChart: true,
+    inRegularMode: true, // 为 false 时进入锯齿波模式
     eventListener: null,
     accCurrentData: '                      ',
     gyoCurrentData: '                      ',
@@ -265,9 +266,9 @@ export default class PeripheralDetail extends Component {
           <Button onPress={this.handleBack} transparent>
             <Icon name="ios-arrow-back" />
           </Button>
-          <Title>大联大星球重力探测仪</Title>
-          <Button onPress={() => this.setState({ showDetail: !this.state.showDetail })} transparent>
-            <Icon name="md-document" />
+          <Title onPress={() => this.setState({ showDetail: !this.state.showDetail })}>大联大星球重力探测仪</Title>
+          <Button onPress={() => this.setState({ inRegularMode: !this.state.inRegularMode })} transparent>
+            { this.state.inRegularMode ? '计' : '检' }
           </Button>
           <Button onPress={() => this.setState({ openACCLineChart: !this.state.openACCLineChart })} transparent>
             { this.state.openACCLineChart ? '加速度计' : '陀螺仪' }
