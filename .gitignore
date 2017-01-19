@@ -45,3 +45,4 @@ android/app/libs
 
 #Resilio Sync
 .sync/
+*.apk

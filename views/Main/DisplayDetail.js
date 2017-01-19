@@ -79,6 +79,17 @@ export default class PeripheralDetail extends Component {
     updatePeriod: 1500, // ms
   }
 
+  componentWillMount() {
+    const characteristics = this.props.peripheralInfo.characteristics;
+    this.setState({
+      peripheralID: this.props.peripheralInfo.id,
+      service: characteristics[characteristics.length - 1].service,
+      gyoCharacteristic: characteristics[characteristics.length - 1].characteristic,
+      accCharacteristic: characteristics[characteristics.length - 2].characteristic,
+      regualrCharacteristic: characteristics[characteristics.length - 3].characteristic, // 用于切换普通状态和检修状态
+    });
+  }
+
   componentDidMount() {
     BackAndroid.addEventListener('hardwareBackPress', this.handleBack);
   }
@@ -90,21 +101,22 @@ export default class PeripheralDetail extends Component {
   }
 
   notifyData() {
+    const { peripheralID, service } = this.state;
     if (this.state.notifying === true) {
       this.state.eventListener.remove();
       return Promise.try(() =>
         BleManager.stopNotification(
-          '08:7C:BE:00:00:01',
-          'fee9',
-          'd44bc439-abfd-45a2-b575-925416129601'
+          peripheralID,
+          service,
+          this.state.accCharacteristic
         )
       )
       .then(() => Promise.delay(this.state.updatePeriod))
       .then(() =>
         BleManager.stopNotification(
-          '08:7C:BE:00:00:01',
-          'fee9',
-          'd44bc439-abfd-45a2-b575-925416129602'
+          peripheralID,
+          service,
+          this.state.gyoCharacteristic
         )
       )
       .then(() => {
@@ -117,17 +129,17 @@ export default class PeripheralDetail extends Component {
 
     return Promise.try(() =>
       BleManager.startNotification(
-        '08:7C:BE:00:00:01',
-        'fee9',
-        'd44bc439-abfd-45a2-b575-925416129601'
+        peripheralID,
+        service,
+        this.state.accCharacteristic
       )
     )
     .then(() => Promise.delay(this.state.updatePeriod))
     .then(() =>
       BleManager.startNotification(
-        '08:7C:BE:00:00:01',
-        'fee9',
-        'd44bc439-abfd-45a2-b575-925416129602'
+        peripheralID,
+        service,
+        this.state.gyoCharacteristic
       )
     )
     .then(() => {
@@ -139,8 +151,21 @@ export default class PeripheralDetail extends Component {
     });
   }
 
+  writeBit(peripheralId, serviceUUID, characteristicUUID, data, maxByteSize) {
+    return (
+      this.state.inRegularMode ?
+      Promise.try(() =>
+        BleManager.write(this.state.peripheralID, this.state.service, this.state.regualrCharacteristic, '00') // 1 是 发送 Raw Data，0 是发送 锯齿波
+      ) :
+      Promise.try(() =>
+        BleManager.write(this.state.peripheralID, this.state.service, this.state.regualrCharacteristic, '01')
+      )
+    )
+    .then(() => this.setState({ inRegularMode: !this.state.inRegularMode }));
+  }
+
   filteDataToState({ peripheral: peripheralID, characteristic, value }) {
-    if (new Date().getTime() - this.state.lastACCDataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129601') {
+    if (new Date().getTime() - this.state.lastACCDataUpdateTime >= this.state.updatePeriod && peripheralID === this.state.peripheralID && characteristic === this.state.accCharacteristic) {
       // push things like [ 252, 0, 146, 0, 239, 188 ]
       const datas = words(value, /\S{4}/g).map(item => parseRadix16(item, 17039));
       const accDataCache = ['加速度X·G¹', '加速度Y·G¹', '加速度Z·G¹'].map((name, index) => ({
@@ -148,7 +173,7 @@ export default class PeripheralDetail extends Component {
       }));
 
       this.setState({ accCurrentData: value, accDataCache, lastACCDataUpdateTime: new Date().getTime() });
-    } else if (new Date().getTime() - this.state.lastGYODataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129602') {
+    } else if (new Date().getTime() - this.state.lastGYODataUpdateTime >= this.state.updatePeriod && peripheralID === this.state.peripheralID && characteristic === this.state.gyoCharacteristic) {
       const datas = words(value, /\S{4}/g).map(item => parseRadix16(item, 16.4));
       const gyoDataCache = ['陀螺仪X °·S¹', '陀螺仪Y °·S¹', '陀螺仪Z °·S¹'].map((name, index) => ({
         name, values: [...takeRight(this.state.gyoDataCache[index].values, this.state.dataCacheLimit), datas[index]]
@@ -268,7 +293,7 @@ export default class PeripheralDetail extends Component {
           </Button>
           <Title onPress={() => this.setState({ showDetail: !this.state.showDetail })}>大联大星球重力探测仪</Title>
           <Button onPress={() => this.setState({ inRegularMode: !this.state.inRegularMode })} transparent>
-            { this.state.inRegularMode ? '计' : '检' }
+            { this.state.inRegularMode ? '计' : '锯' }
           </Button>
           <Button onPress={() => this.setState({ openACCLineChart: !this.state.openACCLineChart })} transparent>
             { this.state.openACCLineChart ? '加速度计' : '陀螺仪' }
