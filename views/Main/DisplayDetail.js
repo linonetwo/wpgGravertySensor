@@ -58,7 +58,7 @@ export default class PeripheralDetail extends Component {
     errorInfo: '',
     showDetail: false,
     notifying: false,
-    openLineChart: true,
+    openACCLineChart: true,
     eventListener: null,
     accCurrentData: '                      ',
     gyoCurrentData: '                      ',
@@ -157,78 +157,131 @@ export default class PeripheralDetail extends Component {
     }
   }
 
+  getChartData = () => ({
+    ACCXlineChartData: {
+      datasets: [this.state.accDataCache[0]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[0],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+    ACCYlineChartData: {
+      datasets: [this.state.accDataCache[1]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[0],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+    ACCZlineChartData: {
+      datasets: [this.state.accDataCache[2]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[0],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+
+    GYOXlineChartData: {
+      datasets: [this.state.gyoDataCache[0]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[1],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+    GYOYlineChartData: {
+      datasets: [this.state.gyoDataCache[1]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[1],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+    GYOZlineChartData: {
+      datasets: [this.state.gyoDataCache[2]].map(({ name, values }, index) => ({
+        yValues: values,
+        label: name,
+        config: {
+          lineWidth: 3,
+          drawCubic: true,
+          drawCubicIntensity: 0.1,
+          circleRadius: 0,
+          drawHighlightIndicators: true,
+          color: colorSwatches[1],
+        },
+      })),
+      // need to be limit + 1, or there will be a crash
+      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
+    },
+  })
+
   render() {
-    const XlineChartData = {
-      datasets: [this.state.accDataCache[0], this.state.gyoDataCache[0]].map(({ name, values }, index) => ({
-        yValues: values,
-        label: name,
-        config: {
-          lineWidth: 3,
-          drawCubic: true,
-          drawCubicIntensity: 0.1,
-          circleRadius: 0,
-          drawHighlightIndicators: true,
-          color: colorSwatches[index % colorSwatches.length],
-        },
-      })),
-      // need to be limit + 1, or there will be a crash
-      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
-    };
-    const YlineChartData = {
-      datasets: [this.state.accDataCache[1], this.state.gyoDataCache[1]].map(({ name, values }, index) => ({
-        yValues: values,
-        label: name,
-        config: {
-          lineWidth: 3,
-          drawCubic: true,
-          drawCubicIntensity: 0.1,
-          circleRadius: 0,
-          drawHighlightIndicators: true,
-          color: colorSwatches[index % colorSwatches.length],
-        },
-      })),
-      // need to be limit + 1, or there will be a crash
-      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
-    };
-    const ZlineChartData = {
-      datasets: [this.state.accDataCache[2], this.state.gyoDataCache[2]].map(({ name, values }, index) => ({
-        yValues: values,
-        label: name,
-        config: {
-          lineWidth: 3,
-          drawCubic: true,
-          drawCubicIntensity: 0.1,
-          circleRadius: 0,
-          drawHighlightIndicators: true,
-          color: colorSwatches[index % colorSwatches.length],
-        },
-      })),
-      // need to be limit + 1, or there will be a crash
-      xValues: Array.from(new Array(this.state.dataCacheLimit + 2), (item, index) => index + 1).map(number => number.toString()),
-    };
+    const { ACCXlineChartData, ACCYlineChartData, ACCZlineChartData, GYOXlineChartData, GYOYlineChartData, GYOZlineChartData } = this.getChartData();
     return (
       <Container>
         <Header style={{ width: windowWidth }}>
           <Button onPress={this.handleBack} transparent>
             <Icon name="ios-arrow-back" />
           </Button>
-          <Title>大联大重力控制仪</Title>
+          <Title>大联大星球重力探测仪</Title>
           <Button onPress={() => this.setState({ showDetail: !this.state.showDetail })} transparent>
             <Icon name="md-document" />
           </Button>
-          <Button onPress={() => this.setState({ openLineChart: !this.state.openLineChart })} transparent>
-            <Icon name="md-podium" />
+          <Button onPress={() => this.setState({ openACCLineChart: !this.state.openACCLineChart })} transparent>
+            { this.state.openACCLineChart ? '加速度计' : '陀螺仪' }
           </Button>
         </Header>
         <Content>
-          <Text>{this.state.errorInfo || `ACC: ${this.state.accCurrentData}  GYO: ${this.state.gyoCurrentData}`}</Text>
+          <Text>{this.state.errorInfo || `加速度计: ${this.state.accCurrentData}  陀螺仪: ${this.state.gyoCurrentData}`}</Text>
           {
-            this.state.openLineChart
+            this.state.openACCLineChart
               ?
                 <View>
                   <LineChart
                     style={styles.chart}
-                    data={XlineChartData}
+                    data={ACCXlineChartData}
                     description={{ text: '' }}
 
                     drawGridBackground={false}
@@ -240,7 +293,7 @@ export default class PeripheralDetail extends Component {
                   />
                   <LineChart
                     style={styles.chart}
-                    data={YlineChartData}
+                    data={ACCYlineChartData}
                     description={{ text: '' }}
 
                     drawGridBackground={false}
@@ -252,7 +305,7 @@ export default class PeripheralDetail extends Component {
                   />
                   <LineChart
                     style={styles.chart}
-                    data={ZlineChartData}
+                    data={ACCZlineChartData}
                     description={{ text: '' }}
 
                     drawGridBackground={false}
@@ -263,7 +316,45 @@ export default class PeripheralDetail extends Component {
                     keepPositionOnRotation={false}
                   />
                 </View>
-              : <View />
+              :
+                <View>
+                  <LineChart
+                    style={styles.chart}
+                    data={GYOXlineChartData}
+                    description={{ text: '' }}
+
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
+
+                    keepPositionOnRotation={false}
+                  />
+                  <LineChart
+                    style={styles.chart}
+                    data={GYOYlineChartData}
+                    description={{ text: '' }}
+
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
+
+                    keepPositionOnRotation={false}
+                  />
+                  <LineChart
+                    style={styles.chart}
+                    data={GYOZlineChartData}
+                    description={{ text: '' }}
+
+                    drawGridBackground={false}
+                    borderColor={'teal'}
+                    borderWidth={1}
+                    drawBorders={true}
+
+                    keepPositionOnRotation={false}
+                  />
+                </View>
           }
           {
             this.state.showDetail
