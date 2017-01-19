@@ -27,9 +27,7 @@ const styles = StyleSheet.create({
   }
 });
 
-function parseRadix16(hexNumber) {
-  // const 量程 = 16384;
-  const 量程 = 17039;
+function parseRadix16(hexNumber, 量程 = 1) {
   return new Buffer.from(hexNumber, 'hex').readInt16LE(0) / 量程;
 }
 
@@ -143,15 +141,15 @@ export default class PeripheralDetail extends Component {
   filteDataToState({ peripheral: peripheralID, characteristic, value }) {
     if (new Date().getTime() - this.state.lastACCDataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129601') {
       // push things like [ 252, 0, 146, 0, 239, 188 ]
-      const datas = words(value, /\S{4}/g).map(parseRadix16);
+      const datas = words(value, /\S{4}/g).map(item => parseRadix16(item, 17039));
       const accDataCache = ['加速度X·G¹', '加速度Y·G¹', '加速度Z·G¹'].map((name, index) => ({
         name, values: [...takeRight(this.state.accDataCache[index].values, this.state.dataCacheLimit), datas[index]]
       }));
 
       this.setState({ accCurrentData: value, accDataCache, lastACCDataUpdateTime: new Date().getTime() });
     } else if (new Date().getTime() - this.state.lastGYODataUpdateTime >= this.state.updatePeriod && peripheralID === '08:7C:BE:00:00:01' && characteristic === 'd44bc439-abfd-45a2-b575-925416129602') {
-      const datas = words(value, /\S{4}/g).map(parseRadix16);
-      const gyoDataCache = ['陀螺仪X·G¹', '陀螺仪Y·G¹', '陀螺仪Z·G¹'].map((name, index) => ({
+      const datas = words(value, /\S{4}/g).map(item => parseRadix16(item, 16.4));
+      const gyoDataCache = ['陀螺仪X °·S¹', '陀螺仪Y °·S¹', '陀螺仪Z °·S¹'].map((name, index) => ({
         name, values: [...takeRight(this.state.gyoDataCache[index].values, this.state.dataCacheLimit), datas[index]]
       }));
 
